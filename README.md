@@ -1,12 +1,12 @@
 
-```markdown:
+
 # Multi-Region AWS Infrastructure Deployment
 
 This project demonstrates a highly available, fault-tolerant AWS infrastructure deployment across multiple regions using Infrastructure as Code (IaC) principles with Terraform.
 
 ## Architecture Overview
 
-```
+
                                      ┌─────────────┐
                                      │    Users    │
                                      └──────┬──────┘
