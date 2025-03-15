@@ -1,0 +1,183 @@
+name: 'Project Setup'
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  setup:
+    name: 'Initial Project Setup'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Create Project Structure
+      run: |
+        # Create basic directory structure if it doesn't exist
+        mkdir -p terraform/modules
+        mkdir -p terraform/environments/${{ github.event.inputs.environment }}
+        mkdir -p docs
+        mkdir -p scripts
+      
+    - name: Create Initial Terraform Files
+      run: |
+        # Only create files if they don't exist
+        if [ ! -f terraform/environments/${{ github.event.inputs.environment }}/main.tf ]; then
+          cat > terraform/environments/${{ github.event.inputs.environment }}/main.tf << 'EOF'
+        terraform {
+          required_version = ">= 1.0.0"
+          
+          backend "s3" {
+            # Backend configuration will be provided during terraform init
+          }
+          
+          required_providers {
+            aws = {
+              source  = "hashicorp/aws"
+              version = "~> 4.0"
+            }
+          }
+        }
+
+        provider "aws" {
+          region = "us-east-1"
+          
+          default_tags {
+            tags = {
+              Environment = "${{ github.event.inputs.environment }}"
+              Project     = "Project-0"
+              ManagedBy   = "Terraform"
+            }
+          }
+        }
+        EOF
+        fi
+        
+        if [ ! -f terraform/environments/${{ github.event.inputs.environment }}/variables.tf ]; then
+          cat > terraform/environments/${{ github.event.inputs.environment }}/variables.tf << 'EOF'
+        variable "region" {
+          description = "AWS region to deploy resources"
+          type        = string
+          default     = "us-east-1"
+        }
+
+        variable "environment" {
+          description = "Environment name"
+          type        = string
+          default     = "${{ github.event.inputs.environment }}"
+        }
+        EOF
+        fi
+        
+        if [ ! -f terraform/environments/${{ github.event.inputs.environment }}/outputs.tf ]; then
+          cat > terraform/environments/${{ github.event.inputs.environment }}/outputs.tf << 'EOF'
+        # Output definitions will go here
+        EOF
+        fi
+    
+    - name: Create README if not exists
+      run: |
+        if [ ! -f README.md ]; then
+          cat > README.md << 'EOF'
+        # Project-0
+        
+        Multi-region AWS infrastructure deployment using Terraform and GitHub Actions.
+        
+        ## Architecture
+        
+        See the [architecture documentation](docs/architecture.md) for details on the infrastructure design.
+        
+        ## Getting Started
+        
+        1. Clone this repository
+        2. Set up the required GitHub secrets for AWS authentication
+        3. Run the Project Setup workflow to initialize the environment
+        4. Push changes to trigger the Terraform workflow
+        
+        ## Environments
+        
+        - dev: Development environment
+        - test: Testing environment
+        - prod: Production environment
+        
+        ## Workflows
+        
+        - `project-setup.yml`: Initialize project structure
+        - `terraform.yml`: Deploy infrastructure using Terraform
+        
+        ## Security
+        
+        This project follows AWS security best practices including:
+        - Least privilege IAM roles
+        - OIDC authentication for GitHub Actions
+        - Security scanning with tfsec and checkov
+        - Manual approval for production changes
+        EOF
+        fi
+    
+    - name: Validate Repository
+      run: |
+        # Check if required directories exist
+        if [ ! -d "terraform" ]; then
+          echo "::error::Terraform directory is missing"
+          exit 1
+        fi
+        
+        if [ ! -d "docs" ]; then
+          echo "::error::Docs directory is missing"
+          exit 1
+        fi
+        
+        echo "Repository structure validated successfully"
+    
+    - name: Create Issue with Next Steps
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Project Setup Completed - Next Steps',
+            body: `
+            # Project Setup Complete
+            
+            The basic project structure has been created for the \`${{ github.event.inputs.environment }}\` environment.
+            
+            ## Next Steps
+            
+            1. Set up the required GitHub secrets:
+               - \`AWS_ROLE_TO_ASSUME\`: ARN of the IAM role for GitHub Actions
+               - \`TERRAFORM_LOCK_TABLE\`: Name of your DynamoDB table for state locking
+            
+            2. Create an S3 bucket for Terraform state storage
+            
+            3. Create a DynamoDB table for state locking
+            
+            4. Update the Terraform backend configuration
+            
+            5. Add your infrastructure code to the Terraform files
+            
+            6. Push changes to trigger the Terraform workflow
+            
+            ## Resources
+            
+            - [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+            - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+            `
+          })
