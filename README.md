@@ -1,10 +1,65 @@
+
+```markdown:
 # Multi-Region AWS Infrastructure Deployment
 
 This project demonstrates a highly available, fault-tolerant AWS infrastructure deployment across multiple regions using Infrastructure as Code (IaC) principles with Terraform.
 
 ## Architecture Overview
 
-![Architecture Diagram](docs/architecture-diagram.png)
+```
+                                     ┌─────────────┐
+                                     │    Users    │
+                                     └──────┬──────┘
+                                            │
+                                 ┌──────────┴──────────┐
+                                 │                     │
+                           ┌─────▼─────┐         ┌─────▼─────┐
+                           │ CloudFront│         │  Route53  │
+                           │    CDN    │         │DNS Failover│
+                           └─────┬─────┘         └──────┬─────┘
+                                 │                      │
+     ┌─────────────────────────────────────────┐       │       ┌─────────────────────────────────────────┐
+     │ Primary Region (us-east-1)              │       │       │ Secondary Region (us-west-2)            │
+     │                                         │       │       │                                         │
+     │  ┌─────────────┐         ┌─────────────┐│       │       │┌─────────────┐         ┌─────────────┐ │
+     │  │     S3      │         │  DynamoDB   ││       │       ││     S3      │         │  DynamoDB   │ │
+     │  │   Bucket    │         │Global Tables││       │       ││   Bucket    │         │Global Tables│ │
+     │  └─────────────┘         └──────┬──────┘│       │       │└─────────────┘         └──────┬──────┘ │
+     │                                  │       │       │       │                                │       │
+     │  ┌─────────────────────────────────────┐│       │       │┌─────────────────────────────────────┐ │
+     │  │ VPC                               │ ││       │       ││ VPC                               │ │ │
+     │  │  ┌───────────────┐  ┌───────────┐ │ ││       │       ││  ┌───────────────┐  ┌───────────┐ │ │ │
+     │  │  │ Public Subnet │  │   WAF     │ │ ││       │       ││  │ Public Subnet │  │   WAF     │ │ │ │
+     │  │  │ ┌───────────┐ │  └─────┬─────┘ │ ││       │       ││  │ ┌───────────┐ │  └─────┬─────┘ │ │ │
+     │  │  │ │    ALB    │◄┼────────┘       │ ││◄──────┼───────┼┼──┼►│    ALB    │◄┼────────┘       │ │ │
+     │  │  │ └─────┬─────┘ │                │ ││       │       ││  │ └─────┬─────┘ │                │ │ │
+     │  │  └───────┼───────┘                │ ││       │       ││  └───────┼───────┘                │ │ │
+     │  │          │                        │ ││       │       ││          │                        │ │ │
+     │  │  ┌───────┼───────┐                │ ││       │       ││  ┌───────┼───────┐                │ │ │
+     │  │  │Private Subnet │                │ ││       │       ││  │Private Subnet │                │ │ │
+     │  │  │ ┌───────────┐ │                │ ││       │       ││  │ ┌───────────┐ │                │ │ │
+     │  │  │ │Auto Scaling│ │                │ ││       │       ││  │ │Auto Scaling│ │                │ │ │
+     │  │  │ │  Group    │ │                │ ││       │       ││  │ │  Group    │ │                │ │ │
+     │  │  │ │ ┌───────┐ │ │                │ ││       │       ││  │ │ ┌───────┐ │ │                │ │ │
+     │  │  │ │ │  EC2  │ │ │                │ ││       │       ││  │ │ │  EC2  │ │ │                │ │ │
+     │  │  │ │ └───────┘ │ │                │ ││       │       ││  │ │ └───────┘ │ │                │ │ │
+     │  │  │ └───────────┘ │                │ ││       │       ││  │ └───────────┘ │                │ │ │
+     │  │  └───────────────┘                │ ││       │       ││  └───────────────┘                │ │ │
+     │  │                                   │ ││       │       ││                                   │ │ │
+     │  └─────────────────────────────────────┘│       │       │└─────────────────────────────────────┘ │
+     │                                         │       │       │                                         │
+     │  ┌─────────────┐                        │       │       │  ┌─────────────┐                        │
+     │  │ CloudWatch  │                        │       │       │  │ CloudWatch  │                        │
+     │  │ Monitoring  │                        │       │       │  │ Monitoring  │                        │
+     │  └─────────────┘                        │       │       │  └─────────────┘                        │
+     └─────────────────────────────────────────┘       │       └─────────────────────────────────────────┘
+                                                       │
+                                               ┌───────┴───────┐
+                                               │ GitHub Actions│
+                                               │  CI/CD Pipeline│
+                                               └───────────────┘
+```
+
 
 The infrastructure includes:
 
@@ -26,24 +81,24 @@ The infrastructure includes:
 - GitHub account (for CI/CD)
 
 ## Project Structure
+```
 .
 ├── .github/
 │   └── workflows/
 │       └── terraform.yml
 ├── docs/
-│   └── architecture-diagram.png
+│   └── architecture.md
 └── terraform/
-├── main.tf
-├── variables.tf
-├── outputs.tf
-└── modules/
-├── vpc/
-├── ec2/
-├── alb/
-├── route53/
-├── dynamodb/
-└── s3/
-
+    ├── main.tf
+    ├── variables.tf
+    ├── outputs.tf
+    └── modules/
+        ├── vpc/
+        ├── ec2/
+        ├── alb/
+        ├── route53/
+        ├── dynamodb/
+        └── s3/
 ```
 
 ## Deployment
@@ -51,32 +106,24 @@ The infrastructure includes:
 ### Manual Deployment
 
 1. Clone the repository:
- ```
-
+```bash
 git clone https://github.com/eugenyefimov/Project-0.git && cd Project-0
-
 ```
 
 2. Initialize Terraform:
- ```
-
+```bash
 cd terraform
 terraform init
-
 ```
 
 3. Plan the deployment:
- ```
-
+```bash
 terraform plan
-
 ```
 
 4. Apply the changes:
- ```
-
+```bash
 terraform apply
-
 ```
 
 ### CI/CD Deployment
@@ -85,8 +132,8 @@ The project includes a GitHub Actions workflow that automatically deploys change
 
 1. Fork the repository
 2. Add the following secrets to your GitHub repository:
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
 3. Push changes to the main branch to trigger the deployment
 
 ## Testing Failover
@@ -101,12 +148,9 @@ To test the failover capabilities:
 
 To destroy the infrastructure:
 
- ```
-```
-
+```bash
 cd terraform
 terraform destroy
-
 ```
 
 ## Contributing
@@ -116,6 +160,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
- ```
 ```
 
