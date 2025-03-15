@@ -110,7 +110,9 @@ module "route53" {
   
   domain_name        = var.domain_name
   primary_alb_dns    = module.alb_primary.alb_dns_name
-  secondary_alb_dns  = module.alb_secondary.alb_dns_name
+  secondary_alb_dns      = module.alb_secondary.alb_dns_name
+  primary_alb_zone_id   = module.alb_primary.alb_zone_id
+  secondary_alb_zone_id = module.alb_secondary.alb_zone_id
   primary_region     = var.primary_region
   secondary_region   = var.secondary_region
 }
