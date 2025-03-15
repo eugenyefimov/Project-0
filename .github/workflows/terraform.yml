@@ -4,29 +4,60 @@ on:
   push:
     branches:
     - main
+    paths:
+    - 'terraform/**'
+    - '.github/workflows/terraform.yml'
   pull_request:
     branches:
     - main
+    paths:
+    - 'terraform/**'
+    - '.github/workflows/terraform.yml'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
+  security-scan:
+    name: 'Security Scan'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: terraform
+      
+      - name: Run checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
+    needs: security-scan
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
-        terraform_version: 1.3.0
+        terraform_version: 1.5.7
+        terraform_wrapper: false
     
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
         aws-region: us-east-1
     
     - name: Terraform Format
@@ -35,7 +66,10 @@ jobs:
     
     - name: Terraform Init
       id: init
-      run: terraform -chdir=terraform init
+      run: |
+        terraform -chdir=terraform init \
+          -backend-config="encrypt=true" \
+          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_LOCK_TABLE }}"
     
     - name: Terraform Validate
       id: validate
@@ -43,15 +77,25 @@ jobs:
     
     - name: Terraform Plan
       id: plan
-      if: github.event_name == 'pull_request'
-      run: terraform -chdir=terraform plan -no-color
+      run: |
+        terraform -chdir=terraform plan \
+          -no-color \
+          -input=false \
+          -out=tfplan
       continue-on-error: true
+    
+    - name: Redact Sensitive Data
+      if: github.event_name == 'pull_request'
+      run: |
+        terraform -chdir=terraform show -no-color tfplan > plan.txt
+        # Remove sensitive data patterns
+        sed -i 's/\(password\|token\|key\|secret\)[[:space:]]*=[[:space:]]*"[^"]*"/\1 = "***REDACTED***"/gi' plan.txt
     
     - name: Update Pull Request
       uses: actions/github-script@v6
       if: github.event_name == 'pull_request'
       env:
-        PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        PLAN: "${{ steps.plan.outcome == 'success' && 'terraform\n' || 'PLAN FAILED\n' }}${{ steps.plan.outcome == 'success' && '$(cat plan.txt)' || steps.plan.outputs.stderr }}"
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -77,6 +121,24 @@ jobs:
             body: output
           })
     
+    - name: Terraform Plan Status
+      if: steps.plan.outcome == 'failure'
+      run: exit 1
+    
+    - name: Request Approval
+      uses: trstringer/manual-approval@v1
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      with:
+        secret: ${{ secrets.GITHUB_TOKEN }}
+        approvers: ${{ vars.TERRAFORM_APPROVERS }}
+        minimum-approvals: 1
+        issue-title: "Approve Terraform changes to production"
+        issue-body: "Please review the Terraform plan and approve these changes to be applied to production."
+        exclude-workflow-initiator-as-approver: false
+    
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform -chdir=terraform apply -auto-approve
+      run: |
+        terraform -chdir=terraform apply \
+          -input=false \
+          tfplan
