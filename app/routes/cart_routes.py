@@ -1,0 +1,95 @@
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import current_app as app
+import os
+import uuid
+from datetime import datetime
+
+cart_bp = Blueprint('cart', __name__, url_prefix='/cart')
+
+def get_cart_id():
+    if 'cart_id' not in session:
+        session['cart_id'] = str(uuid.uuid4())
+    return session['cart_id']
+
+@cart_bp.route('/')
+def view_cart():
+    cart_id = get_cart_id()
+    carts_table = app.dynamo.tables[os.environ.get('CARTS_TABLE', 'carts')]
+    
+    cart = carts_table.get_item(Key={'id': cart_id}).get('Item')
+    
+    if not cart:
+        cart = {
+            'id': cart_id,
+            'items': [],
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat()
+        }
+        carts_table.put_item(Item=cart)
+    
+    # Get product details for each item in cart
+    products_table = app.dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
+    cart_items = []
+    
+    for item in cart.get('items', []):
+        product = products_table.get_item(Key={'id': item['product_id']}).get('Item')
+        if product:
+            cart_items.append({
+                'product': product,
+                'quantity': item['quantity']
+            })
+    
+    return render_template('cart/view.html', cart_items=cart_items)
+
+@cart_bp.route('/add', methods=['POST'])
+def add_to_cart():
+    product_id = request.form.get('product_id')
+    quantity = int(request.form.get('quantity', 1))
+    
+    if not product_id:
+        flash('Product ID is required', 'error')
+        return redirect(url_for('product.list_products'))
+    
+    # Get product to verify it exists
+    products_table = app.dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
+    product = products_table.get_item(Key={'id': product_id}).get('Item')
+    
+    if not product:
+        flash('Product not found', 'error')
+        return redirect(url_for('product.list_products'))
+    
+    # Get or create cart
+    cart_id = get_cart_id()
+    carts_table = app.dynamo.tables[os.environ.get('CARTS_TABLE', 'carts')]
+    
+    cart = carts_table.get_item(Key={'id': cart_id}).get('Item')
+    
+    if not cart:
+        cart = {
+            'id': cart_id,
+            'items': [],
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat()
+        }
+    
+    # Check if product already in cart
+    found = False
+    for item in cart.get('items', []):
+        if item['product_id'] == product_id:
+            item['quantity'] += quantity
+            found = True
+            break
+    
+    if not found:
+        cart.setdefault('items', []).append({
+            'product_id': product_id,
+            'quantity': quantity
+        })
+    
+    cart['updated_at'] = datetime.now().isoformat()
+    
+    # Update cart in DynamoDB
+    carts_table.put_item(Item=cart)
+    
+    flash('Product added to cart', 'success')
+    return redirect(url_for('cart.view_cart'))
