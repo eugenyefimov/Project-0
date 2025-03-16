@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Confirmation - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h1>Thank You for Your Order!</h1>
+    <p class="lead">Your order has been placed successfully.</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Order Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <p><strong>Order ID:</strong> {{ order.id }}</p>
+                <p><strong>Date:</strong> {{ order.created_at }}</p>
+                <p><strong>Status:</strong> 
+                    <span class="badge bg-{{ 'success' if order.status == 'completed' else 'warning' if order.status == 'pending' else 'danger' }}">
+                        {{ order.status|capitalize }}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Customer:</strong> {{ order.customer.name }}</p>
+                <p><strong>Email:</strong> {{ order.customer.email }}</p>
+                <p><strong>Shipping Address:</strong> {{ order.customer.address }}</p>
+            </div>
+        </div>
+        
+        <h6 class="mb-3">Items</h6>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items %}
+                    <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td>${{ item.price }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>${{ item.item_total }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Total:</td>
+                        <td class="fw-bold">${{ order.total_amount }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="text-center">
+    <a href="{{ url_for('product.list_products') }}" class="btn btn-primary">Continue Shopping</a>
+</div>
+{% endblock %}

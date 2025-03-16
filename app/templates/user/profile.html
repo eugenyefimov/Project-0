@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - E-Commerce Store{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">My Profile</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Account Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ session.get('user_email') }}</p>
+                <p><strong>Account Type:</strong> Standard</p>
+                <p><strong>Member Since:</strong> January 1, 2023</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <a href="{{ url_for('order.list_orders') }}" class="text-decoration-none">View My Orders</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('cart.view_cart') }}" class="text-decoration-none">View My Cart</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('user.logout') }}" class="text-decoration-none text-danger">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

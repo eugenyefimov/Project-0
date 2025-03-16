@@ -38,38 +38,46 @@ dynamo = Dynamo(app)
 
 # Configure S3
 s3 = boto3.client('s3',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1'),
-    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+    region_name=os.environ.get('AWS_REGION', 'us-east-1')
 )
 BUCKET_NAME = os.environ.get('S3_BUCKET', 'project0-static-assets')
 
 # Fix for running behind a proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
-# Import routes
-from routes.product_routes import product_bp
-from routes.cart_routes import cart_bp
-from routes.order_routes import order_bp
-from routes.user_routes import user_bp
+# Import blueprints
+from app.routes.product_routes import product_bp
+from app.routes.cart_routes import cart_bp
+from app.routes.order_routes import order_bp
+from app.routes.user_routes import user_bp
 
 # Register blueprints
-app.register_blueprint(product_bp)
-app.register_blueprint(cart_bp)
-app.register_blueprint(order_bp)
-app.register_blueprint(user_bp)
+app.register_blueprint(product_bp, url_prefix='/products')
+app.register_blueprint(cart_bp, url_prefix='/cart')
+app.register_blueprint(order_bp, url_prefix='/orders')
+app.register_blueprint(user_bp, url_prefix='/user')
 
 @app.route('/')
 def index():
-    # Get products from DynamoDB
-    products_table = dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
-    products = list(products_table.scan()['Items'])
+    # Get products from DynamoDB (mock data for now)
+    products = [
+        {
+            'id': '1',
+            'name': 'Product 1',
+            'description': 'This is product 1',
+            'price': '19.99',
+            'stock': 10
+        },
+        {
+            'id': '2',
+            'name': 'Product 2',
+            'description': 'This is product 2',
+            'price': '29.99',
+            'stock': 5
+        }
+    ]
     
     return render_template('index.html', products=products)
-
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -78,6 +86,10 @@ def page_not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('500.html'), 500
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

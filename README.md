@@ -77,51 +77,104 @@ The infrastructure includes:
 - Terraform (v1.3.0 or later)
 - AWS CLI configured with appropriate permissions
 - GitHub account (for CI/CD)
+- Python 3.8 or later (for the application)
 
 ## Project Structure
-```
 .
 ├── .github/
 │   └── workflows/
-│       └── terraform.yml
+│       ├── terraform.yml
+│       └── project-setup.yml
+├── app/
+│   ├── routes/
+│   ├── static/
+│   ├── templates/
+│   └── app.py
 ├── docs/
 │   └── architecture.md
-└── terraform/
-    ├── main.tf
-    ├── variables.tf
-    ├── outputs.tf
-    └── modules/
-        ├── vpc/
-        ├── ec2/
-        ├── alb/
-        ├── route53/
-        ├── dynamodb/
-        └── s3/
-```
+├── scripts/
+│   ├── init-backend.bat
+│   └── init-backend.sh
+├── terraform/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── modules/
+│       ├── vpc/
+│       ├── ec2/
+│       ├── alb/
+│       ├── route53/
+│       ├── dynamodb/
+│       └── s3/
+├── .gitignore
+├── requirements.txt
+├── run.py
+└── README.md
+
 
 ## Deployment
 
-### Manual Deployment
+### Infrastructure Deployment
 
-1. Clone the repository:
+#### 1. Initialize the Terraform Backend
+
+For Windows:
 ```
-git clone https://github.com/eugenyefimov/Project-0.git && cd Project-0
+cd scripts init-backend.bat
+```
+For Unix/Linux:
+ ```
+
+cd scripts
+chmod +x init-backend.sh
+./init-backend.sh
+
 ```
 
-2. Initialize Terraform:
-```
+#### 2. Deploy with Terraform
+
+ ```
+
 cd terraform
 terraform init
-```
-
-3. Plan the deployment:
-```
 terraform plan
+terraform apply
+
 ```
 
-4. Apply the changes:
+### Application Deployment
+
+#### 1. Set up Python Environment
+
 ```
-terraform apply
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+```
+
+#### 2. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```
+
+FLASK_ENV=development
+SECRET_KEY=your-secret-key
+AWS_REGION=us-east-1
+PRODUCTS_TABLE=products
+CARTS_TABLE=carts
+ORDERS_TABLE=orders
+S3_BUCKET=project0-static-assets
+
+```
+
+#### 3. Run the Application
+
+ ```
+
+python run.py
+
 ```
 
 ### CI/CD Deployment
@@ -132,6 +185,8 @@ The project includes a GitHub Actions workflow that automatically deploys change
 2. Add the following secrets to your GitHub repository:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_ROLE_TO_ASSUME` (if using IAM roles)
+   - `TERRAFORM_LOCK_TABLE` (DynamoDB table name for state locking)
 3. Push changes to the main branch to trigger the deployment
 
 ## Testing Failover
@@ -146,9 +201,12 @@ To test the failover capabilities:
 
 To destroy the infrastructure:
 
+
 ```
+
 cd terraform
 terraform destroy
+
 ```
 
 ## Contributing
@@ -158,3 +216,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+ 

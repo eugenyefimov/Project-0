@@ -34,7 +34,7 @@ def logout():
 @user_bp.route('/profile')
 def profile():
     if 'user_id' not in session:
-        flash('Please login to view your profile', 'error')
+        flash('Please log in to view your profile', 'warning')
         return redirect(url_for('user.login'))
     
     return render_template('user/profile.html')

@@ -28,18 +28,23 @@ def view_cart():
         carts_table.put_item(Item=cart)
     
     # Get product details for each item in cart
-    products_table = app.dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
     cart_items = []
+    total = 0
+    
+    products_table = app.dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
     
     for item in cart.get('items', []):
         product = products_table.get_item(Key={'id': item['product_id']}).get('Item')
         if product:
+            item_total = float(product['price']) * item['quantity']
+            total += item_total
             cart_items.append({
-                'product': product,
-                'quantity': item['quantity']
+                'product_id': item['product_id'],
+                'quantity': item['quantity'],
+                'product': product
             })
     
-    return render_template('cart/view.html', cart_items=cart_items)
+    return render_template('cart/view.html', cart_items=cart_items, total=total)
 
 @cart_bp.route('/add', methods=['POST'])
 def add_to_cart():
@@ -50,15 +55,7 @@ def add_to_cart():
         flash('Product ID is required', 'error')
         return redirect(url_for('product.list_products'))
     
-    # Get product to verify it exists
-    products_table = app.dynamo.tables[os.environ.get('PRODUCTS_TABLE', 'products')]
-    product = products_table.get_item(Key={'id': product_id}).get('Item')
-    
-    if not product:
-        flash('Product not found', 'error')
-        return redirect(url_for('product.list_products'))
-    
-    # Get or create cart
+    # Get cart
     cart_id = get_cart_id()
     carts_table = app.dynamo.tables[os.environ.get('CARTS_TABLE', 'carts')]
     
@@ -93,3 +90,36 @@ def add_to_cart():
     
     flash('Product added to cart', 'success')
     return redirect(url_for('cart.view_cart'))
+
+@cart_bp.route('/remove', methods=['POST'])
+def remove_from_cart():
+    product_id = request.form.get('product_id')
+    
+    if not product_id:
+        flash('Product ID is required', 'error')
+        return redirect(url_for('cart.view_cart'))
+    
+    # Get cart
+    cart_id = get_cart_id()
+    carts_table = app.dynamo.tables[os.environ.get('CARTS_TABLE', 'carts')]
+    
+    cart = carts_table.get_item(Key={'id': cart_id}).get('Item')
+    
+    if not cart:
+        flash('Your cart is empty', 'error')
+        return redirect(url_for('cart.view_cart'))
+    
+    # Remove item from cart
+    cart['items'] = [item for item in cart.get('items', []) if item['product_id'] != product_id]
+    cart['updated_at'] = datetime.now().isoformat()
+    
+    # Update cart in DynamoDB
+    carts_table.put_item(Item=cart)
+    
+    flash('Product removed from cart', 'success')
+    return redirect(url_for('cart.view_cart'))
+
+@cart_bp.route('/remove-item', methods=['POST'])
+def remove_item():
+    # This is an alias for remove_from_cart to match the template
+    return remove_from_cart()
