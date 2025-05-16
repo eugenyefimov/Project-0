@@ -1,9 +1,8 @@
-resource "aws_dynamodb_table" "primary" {
-  provider         = aws.primary
-  name             = var.table_name
-  billing_mode     = "PAY_PER_REQUEST"
-  hash_key         = "id"
-  stream_enabled   = true
+resource "aws_dynamodb_table" "global_table" {
+  name           = var.table_name
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+  stream_enabled = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
   
   attribute {
@@ -15,12 +14,8 @@ resource "aws_dynamodb_table" "primary" {
     region_name = var.secondary_region
   }
   
-  point_in_time_recovery {
-    enabled = true
-  }
-  
   tags = {
-    Name        = "${var.table_name}-${var.primary_region}"
+    Name        = "${var.table_name}"
     Environment = var.environment
   }
 }

@@ -37,3 +37,26 @@ output "secondary_region" {
   description = "Secondary AWS region"
   value       = var.secondary_region
 }
+
+output "guardduty_detector_ids" {
+  description = "IDs of the GuardDuty detectors"
+  value = {
+    primary   = module.security.primary_detector_id
+    secondary = module.security.secondary_detector_id
+  }
+}
+
+output "backup_vault_name" {
+  description = "Name of the backup vault"
+  value       = module.backup.backup_vault_name
+}
+
+output "budget_name" {
+  description = "Name of the AWS budget"
+  value       = module.cost.budget_name
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "Name of the CloudWatch dashboard"
+  value       = module.monitoring.dashboard_name
+}

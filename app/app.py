@@ -46,10 +46,10 @@ BUCKET_NAME = os.environ.get('S3_BUCKET', 'project0-static-assets')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 # Import blueprints
-from app.routes.product_routes import product_bp
-from app.routes.cart_routes import cart_bp
-from app.routes.order_routes import order_bp
-from app.routes.user_routes import user_bp
+from .routes.product_routes import product_bp
+from .routes.cart_routes import cart_bp
+from .routes.order_routes import order_bp
+from .routes.user_routes import user_bp
 
 # Register blueprints
 app.register_blueprint(product_bp, url_prefix='/products')

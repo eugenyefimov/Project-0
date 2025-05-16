@@ -131,3 +131,45 @@ module "s3_cloudfront" {
   bucket_name        = var.s3_bucket_name
   environment        = var.environment
 }
+
+# Security Resources
+module "security" {
+  source = "./modules/security"
+  
+  providers = {
+    aws.primary   = aws.primary
+    aws.secondary = aws.secondary
+  }
+}
+
+# Backup Resources
+module "backup" {
+  source = "./modules/backup"
+  
+  environment        = var.environment
+  dynamodb_table_name = var.dynamodb_table_name
+}
+
+# Cost Management Resources
+module "cost" {
+  source = "./modules/cost"
+  
+  providers = {
+    aws = aws.primary
+  }
+  
+  budget_limit = "1000"
+  admin_email  = "admin@example.com"
+}
+
+# Monitoring Resources
+module "monitoring" {
+  source = "./modules/monitoring"
+  
+  providers = {
+    aws = aws.primary
+  }
+  
+  primary_region   = var.primary_region
+  secondary_region = var.secondary_region
+}

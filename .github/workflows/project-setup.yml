@@ -44,6 +44,17 @@ jobs:
         mkdir -p app/models
         mkdir -p app/routes
         mkdir -p app/utils
+        # Terraform module directories
+        mkdir -p terraform/modules/vpc
+        mkdir -p terraform/modules/ec2
+        mkdir -p terraform/modules/alb
+        mkdir -p terraform/modules/route53
+        mkdir -p terraform/modules/dynamodb
+        mkdir -p terraform/modules/s3
+        mkdir -p terraform/modules/security
+        mkdir -p terraform/modules/backup
+        mkdir -p terraform/modules/cost
+        mkdir -p terraform/modules/monitoring
      
     - name: Create Initial Terraform Files
       run: |

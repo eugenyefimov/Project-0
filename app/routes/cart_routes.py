@@ -92,7 +92,7 @@ def add_to_cart():
     return redirect(url_for('cart.view_cart'))
 
 @cart_bp.route('/remove', methods=['POST'])
-def remove_from_cart():
+def remove_item():
     product_id = request.form.get('product_id')
     
     if not product_id:
@@ -118,8 +118,3 @@ def remove_from_cart():
     
     flash('Product removed from cart', 'success')
     return redirect(url_for('cart.view_cart'))
-
-@cart_bp.route('/remove-item', methods=['POST'])
-def remove_item():
-    # This is an alias for remove_from_cart to match the template
-    return remove_from_cart()
