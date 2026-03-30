@@ -1,46 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from flask_dynamo import Dynamo
 import boto3
 import os
 import uuid
 from datetime import datetime
-import json
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
-# Configure DynamoDB
-app.config['DYNAMO_ENABLE_LOCAL'] = False
-app.config['DYNAMO_TABLES'] = [
-    {
-        'TableName': os.environ.get('PRODUCTS_TABLE', 'products'),
-        'KeySchema': [dict(AttributeName='id', KeyType='HASH')],
-        'AttributeDefinitions': [dict(AttributeName='id', AttributeType='S')],
-        'ProvisionedThroughput': dict(ReadCapacityUnits=5, WriteCapacityUnits=5)
-    },
-    {
-        'TableName': os.environ.get('CARTS_TABLE', 'carts'),
-        'KeySchema': [dict(AttributeName='id', KeyType='HASH')],
-        'AttributeDefinitions': [dict(AttributeName='id', AttributeType='S')],
-        'ProvisionedThroughput': dict(ReadCapacityUnits=5, WriteCapacityUnits=5)
-    },
-    {
-        'TableName': os.environ.get('ORDERS_TABLE', 'orders'),
-        'KeySchema': [dict(AttributeName='id', KeyType='HASH')],
-        'AttributeDefinitions': [dict(AttributeName='id', AttributeType='S')],
-        'ProvisionedThroughput': dict(ReadCapacityUnits=5, WriteCapacityUnits=5)
-    }
-]
-
-# Initialize DynamoDB
-dynamo = Dynamo(app)
-
 # Configure S3
-s3 = boto3.client('s3',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
-)
+s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 BUCKET_NAME = os.environ.get('S3_BUCKET', 'project0-static-assets')
+
+# Configure DynamoDB Single Table
+DYNAMO_TABLE_NAME = os.environ.get('DYNAMO_TABLE', 'ecommerce-global-table')
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Fix for running behind a proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
@@ -59,7 +33,7 @@ app.register_blueprint(user_bp, url_prefix='/user')
 
 @app.route('/')
 def index():
-    # Get products from DynamoDB (mock data for now)
+    # Mock data for demonstration, normally would query DYNAMO_TABLE_NAME where PK starts with PRODUCT#
     products = [
         {
             'id': '1',
@@ -76,7 +50,6 @@ def index():
             'stock': 5
         }
     ]
-    
     return render_template('index.html', products=products)
 
 @app.errorhandler(404)

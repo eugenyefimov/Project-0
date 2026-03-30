@@ -12,7 +12,7 @@ A production-ready AWS deployment for a Python web application, built using Terr
 
 ## Architecture Overview
 
-The infrastructure relies on immutable EC2 deployments integrated directly into the CI/CD pipeline. Application code is zipped by Terraform, pushed to S3, and ingested by EC2 Auto Scaling Groups leveraging Session Manager (SSM) instead of SSH for security. DynamoDB global tables replicate data redundantly across `us-east-1` and `us-west-2`.
+The infrastructure relies on immutable EC2 deployments integrated directly into the CI/CD pipeline. Application code is zipped by Terraform, pushed to S3, and ingested by EC2 Auto Scaling Groups leveraging Session Manager (SSM) instead of SSH for security. DynamoDB utilizes a Single-Table Design pattern replicated globally across `us-east-1` and `us-west-2`.
 
                                      ┌─────────────┐
                                      │    Users    │
@@ -30,7 +30,7 @@ The infrastructure relies on immutable EC2 deployments integrated directly into 
      │                                         │       │       │                                        │
      │  ┌─────────────┐         ┌─────────────┐│       │       │┌─────────────┐         ┌─────────────┐ │
      │  │     S3      │         │  DynamoDB   ││       │       ││     S3      │         │  DynamoDB   │ │
-     │  │   Bucket    │         │Global Tables││       │       ││   Bucket    │         │Global Tables│ │
+     │  │   Bucket    │         │Global Table ││       │       ││   Bucket    │         │Global Table │ │
      │  └──────┬──────┘         └──────┬──────┘│       │       │└──────┬──────┘         └──────┬──────┘ │
      │         │                       │       │       │       │       │                       │        │
      │  ┌──────▼──────────────────────────────┐│       │       │┌──────▼──────────────────────────────┐ │
@@ -42,23 +42,18 @@ The infrastructure relies on immutable EC2 deployments integrated directly into 
      │  │  │ └─────┬─────┘ │                │ ││       │       ││  │ └─────┬─────┘ │                │ │ │
      │  │  └───────┼───────┘                │ ││       │       ││  └───────┼───────┘                │ │ │
      │  │          │                        │ ││       │       ││          │                        │ │ │
-     │  │  ┌───────┼───────┐                │ ││       │       ││  ┌───────┼───────┐                │ │ │
-     │  │  │Private Subnet │                │ ││       │       ││  │Private Subnet │                │ │ │
-     │  │  │ ┌───────────┐ │                │ ││       │       ││  │ ┌───────────┐ │                │ │ │
-     │  │  │ │AutoScaling│ │                │ ││       │       ││  │ │AutoScaling│ │                │ │ │
-     │  │  │ │  Group    │ │                │ ││       │       ││  │ │  Group    │ │                │ │ │
-     │  │  │ │ ┌───────┐ │ │                │ ││       │       ││  │ │ ┌───────┐ │ │                │ │ │
-     │  │  │ │ │EC2/SSM│ │ │                │ ││       │       ││  │ │ │EC2/SSM│ │ │                │ │ │
-     │  │  │ │ └───────┘ │ │                │ ││       │       ││  │ │ └───────┘ │ │                │ │ │
-     │  │  │ └───────────┘ │                │ ││       │       ││  │ └───────────┘ │                │ │ │
-     │  │  └───────────────┘                │ ││       │       ││  └───────────────┘                │ │ │
-     │  │                                   │ ││       │       ││                                   │ │ │
-     │  └─────────────────────────────────────┘│       │       │└─────────────────────────────────────┘ │
+     │  ┌──────┼───────┐                      ││       │       │  ┌──────┼───────┐                      │
+     │  │Private Subnet│                      ││       │       │  │Private Subnet│                      │
+     │  │ ┌──────────┐ │                      ││       │       │  │ ┌──────────┐ │                      │
+     │  │ │AutoScale │ │                      ││       │       │  │ │AutoScale │ │                      │
+     │  │ │  Group   │ │                      ││       │       │  │ │  Group   │ │                      │
+     │  │ │ ┌──────┐ │ │                      ││       │       │  │ │ ┌──────┐ │ │                      │
+     │  │ │ │EC2   │ │ │                      ││       │       │  │ │ │EC2   │ │ │                      │
+     │  │ │ │(SSM) │ │ │                      ││       │       │  │ │ │(SSM) │ │ │                      │
+     │  │ │ └──────┘ │ │                      ││       │       │  │ │ └──────┘ │ │                      │
+     │  │ └──────────┘ │                      ││       │       │  │ └──────────┘ │                      │
+     │  └──────────────┘                      ││       │       │  └──────────────┘                      │
      │                                         │       │       │                                        │
-     │  ┌─────────────┐                        │       │       │  ┌─────────────┐                       │
-     │  │ CloudWatch  │                        │       │       │  │ CloudWatch  │                       │
-     │  │ & App Logs  │                        │       │       │  │ & App Logs  │                       │
-     │  └─────────────┘                        │       │       │  └─────────────┘                       │
      └─────────────────────────────────────────┘       │       └────────────────────────────────────────┘
                                                        │
                                                ┌───────┴───────┐
@@ -71,7 +66,7 @@ The infrastructure includes:
 - Secure shell access natively via AWS Systems Manager (SSM)
 - Global Route53 DNS with health checks and failover routing
 - Auto Scaling Groups for dynamic capacity management
-- DynamoDB Global Tables for multi-region database replication
+- DynamoDB Single-Table Design for multi-region database replication
 - Secure GitHub Actions CI/CD pipeline via AWS IAM OIDC Federation
 - AWS CloudWatch Agent pushing application-level logs into centralized Log Groups
 
@@ -87,9 +82,8 @@ The GitHub Actions pipeline is authenticated exclusively via AWS Identity Provid
 - GitHub account (for CI/CD)
 
 ### 1. Setup GitHub OIDC Federation
-
-This project relies on OIDC. Do **not** use static `AWS_ACCESS_KEY_ID`.
-Create an IAM Identity Provider for GitHub Actions and assign a Role with a Trust Policy constrained securely to this repository context:
+This project eschews long-lived static credentials for the superior security of OIDC.
+Create an IAM Identity Provider for GitHub Actions and bind it to this repository namespace strictly:
 
 ```json
 {
@@ -116,28 +110,20 @@ Create an IAM Identity Provider for GitHub Actions and assign a Role with a Trus
 
 Add the `AWS_ROLE_TO_ASSUME` secret to your GitHub Repository Settings.
 
-### 2. Configure Environments
+### Deployment Flow
+The architecture relies entirely on immutable rolling deployments:
+1. GitHub Actions validates and plans changes securely.
+2. Terraform archives the `app/` python source into an S3 `.zip` bundle.
+3. MD5 hashes of the artifact dynamically trigger new `aws_launch_template` versions.
+4. Auto Scaling Group `instance_refresh` executes a zero-downtime rolling update, ingesting the new code securely via `user_data`.
 
-Backend configuration and Terraform variables are strictly isolated by environment. 
+### Partial State Management
+Standardized environments are preserved via partial backend configurations:
+- `terraform/backend/prod.conf`: Secures the S3 locking bucket and DynamoDB table.
+- `terraform/environments/prod.tfvars`: Maps specific network topologies and CIDR blocks declaratively. 
 
-Review and edit the following files for your deployment:
-- `terraform/backend/prod.conf`
-- `terraform/environments/prod.tfvars`
-
-### 3. Deploy via External CI/CD or Local
-
-The GitHub Action triggers automatically when changes merge to `main`. 
-
-**To plan and trace manually locally for testing:**
-```bash
-cd terraform
-
-export AWS_PROFILE=your-profile
-
-terraform init -backend-config=backend/prod.conf
-terraform plan -var-file=environments/prod.tfvars
-terraform apply -var-file=environments/prod.tfvars
-```
+### Telemetry and Monitoring
+A customized CloudWatch Dashboard is constructed exclusively via Infrastructure as Code. Terraform dynamically queries Load Balancer ARN suffixes at runtime to wire accurate `HealthyHostCount` dimensions straight into centralized dashboard panels alongside streaming `user_data` application logs.
 
 ## Testing Failover
 

@@ -1,9 +1,15 @@
 variable "primary_region" {
-  description = "Primary AWS region"
-  type        = string
+  type = string
 }
 
 variable "secondary_region" {
-  description = "Secondary AWS region"
-  type        = string
+  type = string
+}
+
+variable "primary_alb_arn_suffix" {
+  type = string
+}
+
+variable "secondary_alb_arn_suffix" {
+  type = string
 }

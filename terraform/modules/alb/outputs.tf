@@ -17,3 +17,8 @@ output "alb_sg_id" {
   description = "ID of the ALB security group"
   value       = aws_security_group.alb.id
 }
+
+output "alb_arn_suffix" {
+  description = "ARN suffix of the ALB for CloudWatch"
+  value       = aws_lb.main.arn_suffix
+}

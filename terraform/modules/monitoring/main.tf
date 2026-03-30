@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_dashboard" "cross_region" {
-  provider       = aws.primary  # Add this line
+  provider       = aws.primary
   dashboard_name = "cross-region-monitoring"
   
   dashboard_body = jsonencode({
@@ -12,8 +12,8 @@ resource "aws_cloudwatch_dashboard" "cross_region" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "app/primary-alb", { "region": var.primary_region }],
-            ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "app/secondary-alb", { "region": var.secondary_region }]
+            ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.primary_alb_arn_suffix, { "region": var.primary_region }],
+            ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.secondary_alb_arn_suffix, { "region": var.secondary_region }]
           ]
           view    = "timeSeries"
           stacked = false

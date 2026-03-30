@@ -134,7 +134,7 @@ module "route53" {
 module "dynamodb" {
   source = "./modules/dynamodb"
   
-  table_names        = ["products", "carts", "orders"]
+  table_name         = "ecommerce-global-table"
   primary_region     = var.primary_region
   secondary_region   = var.secondary_region
 }
@@ -175,8 +175,7 @@ module "backup" {
   
   environment        = var.environment
   dynamodb_table_arns = [
-    for t in ["products", "carts", "orders"] :
-    "arn:aws:dynamodb:*:*:table/${t}"
+    "arn:aws:dynamodb:*:*:table/ecommerce-global-table"
   ]
 }
 
@@ -200,6 +199,8 @@ module "monitoring" {
     aws = aws.primary
   }
   
-  primary_region   = var.primary_region
-  secondary_region = var.secondary_region
+  primary_region           = var.primary_region
+  secondary_region         = var.secondary_region
+  primary_alb_arn_suffix   = module.alb_primary.alb_arn_suffix
+  secondary_alb_arn_suffix = module.alb_secondary.alb_arn_suffix
 }

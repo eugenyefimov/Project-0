@@ -88,6 +88,16 @@ jobs:
       if: github.event_name == 'pull_request'
       run: |
         terraform -chdir=terraform show -no-color tfplan > /tmp/plan.txt
+        # Extract just the single line summary
+        grep -E "Plan: [0-9]+ to add, [0-9]+ to change, [0-9]+ to destroy" /tmp/plan.txt > /tmp/plan_summary.txt || echo "No changes required." > /tmp/plan_summary.txt
+
+    - name: Upload Plan Artifact
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-plan
+        path: /tmp/plan.txt
+        retention-days: 7
     
     - name: Update Pull Request
       uses: actions/github-script@v6
@@ -96,30 +106,19 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const fs = require('fs');
-          let planData = "PLAN FAILED";
+          let planSummary = "PLAN FAILED";
           try {
-            planData = fs.readFileSync('/tmp/plan.txt', 'utf8');
+            planSummary = fs.readFileSync('/tmp/plan_summary.txt', 'utf8').trim();
           } catch(err) {
-            console.log("No plan output found.");
+            console.log("No plan summary found.");
           }
           
-          const maxGithubLength = 65000;
-          if (planData.length > maxGithubLength) {
-            planData = planData.substring(0, maxGithubLength) + "\n\n... Plan output truncated ...";
-          }
+          const output = `#### Terraform Operations Summary 🚀
+          - **Init**: \`${{ steps.init.outcome }}\`
+          - **Validate**: \`${{ steps.validate.outcome }}\`
+          - **Plan Summary**: \`${planSummary}\`
           
-          const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-          #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-          #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-          #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-          
-          <details><summary>Show Plan</summary>
-          
-          \`\`\`\n
-          ${planData}
-          \`\`\`
-          
-          </details>
+          > 📝 *Detailed logs are safely preserved as a downloadable Action Artifact attached to this PR run. Review for deep-dives into resource deltas.*
           
           *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
           
