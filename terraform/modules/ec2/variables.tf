@@ -32,3 +32,8 @@ variable "app_bucket" {
   description = "S3 bucket containing the application code"
   type        = string
 }
+
+variable "app_hash" {
+  description = "MD5 hash of the app zip"
+  type        = string
+}

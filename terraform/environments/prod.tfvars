@@ -1,0 +1,8 @@
+environment               = "production"
+primary_region            = "us-east-1"
+secondary_region          = "us-west-2"
+primary_vpc_cidr          = "10.0.0.0/16"
+secondary_vpc_cidr        = "10.1.0.0/16"
+domain_name               = "example.com"
+dynamodb_table_name       = "multi-region-app-data"
+s3_bucket_name            = "multi-region-static-content"

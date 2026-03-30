@@ -1,26 +1,26 @@
 variable "primary_region" {
   description = "Primary AWS region for deployment"
-  default     = "us-east-1"
+  type        = string
 }
 
 variable "secondary_region" {
   description = "Secondary AWS region for deployment"
-  default     = "us-west-2"
+  type        = string
 }
 
 variable "environment" {
   description = "Deployment environment"
-  default     = "production"
+  type        = string
 }
 
 variable "primary_vpc_cidr" {
   description = "CIDR block for primary VPC"
-  default     = "10.0.0.0/16"
+  type        = string
 }
 
 variable "secondary_vpc_cidr" {
   description = "CIDR block for secondary VPC"
-  default     = "10.1.0.0/16"
+  type        = string
 }
 
 variable "primary_public_subnets" {
@@ -65,15 +65,15 @@ variable "secondary_private_subnets" {
 
 variable "domain_name" {
   description = "Domain name for the application"
-  default     = "example.com"
+  type        = string
 }
 
 variable "dynamodb_table_name" {
   description = "Name of the DynamoDB table"
-  default     = "multi-region-app-data"
+  type        = string
 }
 
 variable "s3_bucket_name" {
   description = "Name of the S3 bucket for static content"
-  default     = "multi-region-static-content"
+  type        = string
 }

@@ -54,7 +54,7 @@ jobs:
         terraform_version: 1.5.7
         terraform_wrapper: false
     
-    - name: Configure AWS Credentials
+    - name: Configure AWS Credentials from OIDC
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -68,8 +68,7 @@ jobs:
       id: init
       run: |
         terraform -chdir=terraform init \
-          -backend-config="encrypt=true" \
-          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_LOCK_TABLE }}"
+          -backend-config=backend/prod.conf
     
     - name: Terraform Validate
       id: validate
@@ -79,6 +78,7 @@ jobs:
       id: plan
       run: |
         terraform -chdir=terraform plan \
+          -var-file=environments/prod.tfvars \
           -no-color \
           -input=false \
           -out=tfplan
@@ -87,16 +87,27 @@ jobs:
     - name: Extract Terraform Plan
       if: github.event_name == 'pull_request'
       run: |
-        terraform -chdir=terraform show -no-color tfplan > plan.txt
+        terraform -chdir=terraform show -no-color tfplan > /tmp/plan.txt
     
     - name: Update Pull Request
       uses: actions/github-script@v6
       if: github.event_name == 'pull_request'
-      env:
-        PLAN: "${{ steps.plan.outcome == 'success' && 'terraform\n' || 'PLAN FAILED\n' }}${{ steps.plan.outcome == 'success' && '$(cat plan.txt)' || steps.plan.outputs.stderr }}"
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
+          const fs = require('fs');
+          let planData = "PLAN FAILED";
+          try {
+            planData = fs.readFileSync('/tmp/plan.txt', 'utf8');
+          } catch(err) {
+            console.log("No plan output found.");
+          }
+          
+          const maxGithubLength = 65000;
+          if (planData.length > maxGithubLength) {
+            planData = planData.substring(0, maxGithubLength) + "\n\n... Plan output truncated ...";
+          }
+          
           const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
           #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
           #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
@@ -105,7 +116,7 @@ jobs:
           <details><summary>Show Plan</summary>
           
           \`\`\`\n
-          ${process.env.PLAN}
+          ${planData}
           \`\`\`
           
           </details>

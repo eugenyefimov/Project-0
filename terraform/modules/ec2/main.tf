@@ -19,12 +19,12 @@ resource "aws_security_group" "ec2" {
   
   tags = {
     Name        = "${var.environment}-ec2-sg-${var.region_name}"
-    Environment = var.environment
   }
 }
 
 resource "aws_launch_template" "app" {
   name_prefix   = "${var.environment}-launch-template-${var.region_name}"
+  description   = "App Hash: ${var.app_hash}"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = "t3.micro"
   
@@ -37,7 +37,7 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
-    yum install -y unzip python3 python3-pip
+    yum install -y unzip python3 python3-pip amazon-cloudwatch-agent
     
     mkdir -p /opt/ecommerce
     cd /opt/ecommerce
@@ -68,6 +68,29 @@ resource "aws_launch_template" "app" {
     WantedBy=multi-user.target
     SERVICE
 
+    # Configure CloudWatch Agent for Gunicorn logs
+    cat << 'CWAG' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    {
+      "logs": {
+        "logs_collected": {
+          "files": {
+            "collect_list": [
+              {
+                "file_path": "/var/log/messages",
+                "log_group_name": "${var.environment}-ecommerce-app-logs",
+                "log_stream_name": "{instance_id}",
+                "retention_in_days": 14
+              }
+            ]
+          }
+        }
+      }
+    }
+    CWAG
+
+    # Start CloudWatch Agent
+    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
     # Start and enable the service
     systemctl daemon-reload
     systemctl start ecommerce
@@ -80,7 +103,7 @@ resource "aws_launch_template" "app" {
     
     tags = {
       Name        = "${var.environment}-app-instance-${var.region_name}"
-      Environment = var.environment
+      AppHash     = var.app_hash
     }
   }
   
@@ -105,16 +128,18 @@ resource "aws_autoscaling_group" "app" {
   health_check_grace_period = 300
   
   target_group_arns = [var.target_group_arn]
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+    }
+    triggers = ["tag"]
+  }
   
   tag {
     key                 = "Name"
     value               = "${var.environment}-asg-${var.region_name}"
-    propagate_at_launch = true
-  }
-  
-  tag {
-    key                 = "Environment"
-    value               = var.environment
     propagate_at_launch = true
   }
 }
@@ -189,7 +214,6 @@ resource "aws_iam_role" "ec2_role" {
   
   tags = {
     Name        = "${var.environment}-ec2-role-${var.region_name}"
-    Environment = var.environment
   }
 }
 
@@ -201,6 +225,11 @@ resource "aws_iam_role_policy_attachment" "ssm_policy" {
 resource "aws_iam_role_policy_attachment" "s3_read_policy" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {

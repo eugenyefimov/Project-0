@@ -73,6 +73,7 @@ module "ec2_primary" {
   region_name        = var.primary_region
   target_group_arn   = module.alb_primary.target_group_arn
   app_bucket         = module.s3_cloudfront.s3_bucket_name
+  app_hash           = filemd5(data.archive_file.app_zip.output_path)
 }
 
 # Secondary Region Resources
@@ -114,6 +115,7 @@ module "ec2_secondary" {
   region_name        = var.secondary_region
   target_group_arn   = module.alb_secondary.target_group_arn
   app_bucket         = module.s3_cloudfront.s3_bucket_name
+  app_hash           = filemd5(data.archive_file.app_zip.output_path)
 }
 
 # Global Resources
