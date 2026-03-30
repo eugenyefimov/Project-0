@@ -3,7 +3,7 @@ variable "environment" {
   type        = string
 }
 
-variable "dynamodb_table_name" {
-  description = "Name of the DynamoDB table"
-  type        = string
+variable "dynamodb_table_arns" {
+  description = "List of DynamoDB table ARNs to backup"
+  type        = list(string)
 }

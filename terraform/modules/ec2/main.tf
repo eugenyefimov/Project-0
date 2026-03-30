@@ -37,10 +37,41 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
-    yum install -y httpd
-    systemctl start httpd
-    systemctl enable httpd
-    echo "<h1>Hello from ${var.region_name}!</h1>" > /var/www/html/index.html
+    yum install -y unzip python3 python3-pip
+    
+    mkdir -p /opt/ecommerce
+    cd /opt/ecommerce
+    
+    # Download the zipped application artifact from S3
+    aws s3 cp s3://${var.app_bucket}/app.zip .
+    unzip app.zip
+    
+    # Install dependencies
+    pip3 install -r requirements.txt
+    pip3 install gunicorn
+    
+    # Configure Systemd Service
+    cat << 'SERVICE' > /etc/systemd/system/ecommerce.service
+    [Unit]
+    Description=E-Commerce App
+    After=network.target
+
+    [Service]
+    User=root
+    WorkingDirectory=/opt/ecommerce
+    Environment="PORT=80"
+    Environment="AWS_DEFAULT_REGION=${var.region_name}"
+    ExecStart=/usr/local/bin/gunicorn -b 0.0.0.0:80 app:app
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    SERVICE
+
+    # Start and enable the service
+    systemctl daemon-reload
+    systemctl start ecommerce
+    systemctl enable ecommerce
     EOF
   )
   

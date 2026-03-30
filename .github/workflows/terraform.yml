@@ -84,12 +84,10 @@ jobs:
           -out=tfplan
       continue-on-error: true
     
-    - name: Redact Sensitive Data
+    - name: Extract Terraform Plan
       if: github.event_name == 'pull_request'
       run: |
         terraform -chdir=terraform show -no-color tfplan > plan.txt
-        # Remove sensitive data patterns
-        sed -i 's/\(password\|token\|key\|secret\)[[:space:]]*=[[:space:]]*"[^"]*"/\1 = "***REDACTED***"/gi' plan.txt
     
     - name: Update Pull Request
       uses: actions/github-script@v6

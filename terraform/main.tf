@@ -1,22 +1,30 @@
 provider "aws" {
   region = var.primary_region
   alias  = "primary"
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+    }
+  }
 }
 
 provider "aws" {
   region = var.secondary_region
   alias  = "secondary"
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+    }
+  }
 }
 
 # Terraform state management using S3 and DynamoDB
 terraform {
-  backend "s3" {
-    bucket         = "terraform-state-multi-region-project"
-    key            = "terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
-  }
+  backend "s3" {}
   
   required_providers {
     aws = {
@@ -33,10 +41,11 @@ module "vpc_primary" {
     aws = aws.primary
   }
   
-  region_name        = var.primary_region
-  vpc_cidr           = var.primary_vpc_cidr
-  availability_zones = var.primary_azs
-  environment        = var.environment
+  region_name          = var.primary_region
+  vpc_cidr             = var.primary_vpc_cidr
+  public_subnet_cidrs  = var.primary_public_subnets
+  private_subnet_cidrs = var.primary_private_subnets
+  environment          = var.environment
 }
 
 module "alb_primary" {
@@ -63,6 +72,7 @@ module "ec2_primary" {
   environment        = var.environment
   region_name        = var.primary_region
   target_group_arn   = module.alb_primary.target_group_arn
+  app_bucket         = module.s3_cloudfront.s3_bucket_name
 }
 
 # Secondary Region Resources
@@ -72,10 +82,11 @@ module "vpc_secondary" {
     aws = aws.secondary
   }
   
-  region_name        = var.secondary_region
-  vpc_cidr           = var.secondary_vpc_cidr
-  availability_zones = var.secondary_azs
-  environment        = var.environment
+  region_name          = var.secondary_region
+  vpc_cidr             = var.secondary_vpc_cidr
+  public_subnet_cidrs  = var.secondary_public_subnets
+  private_subnet_cidrs = var.secondary_private_subnets
+  environment          = var.environment
 }
 
 module "alb_secondary" {
@@ -102,6 +113,7 @@ module "ec2_secondary" {
   environment        = var.environment
   region_name        = var.secondary_region
   target_group_arn   = module.alb_secondary.target_group_arn
+  app_bucket         = module.s3_cloudfront.s3_bucket_name
 }
 
 # Global Resources
@@ -120,7 +132,7 @@ module "route53" {
 module "dynamodb" {
   source = "./modules/dynamodb"
   
-  table_name         = var.dynamodb_table_name
+  table_names        = ["products", "carts", "orders"]
   primary_region     = var.primary_region
   secondary_region   = var.secondary_region
 }
@@ -130,6 +142,19 @@ module "s3_cloudfront" {
   
   bucket_name        = var.s3_bucket_name
   environment        = var.environment
+}
+
+data "archive_file" "app_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../app"
+  output_path = "${path.module}/app.zip"
+}
+
+resource "aws_s3_object" "app_zip" {
+  bucket = module.s3_cloudfront.s3_bucket_name
+  key    = "app.zip"
+  source = data.archive_file.app_zip.output_path
+  etag   = filemd5(data.archive_file.app_zip.output_path)
 }
 
 # Security Resources
@@ -147,7 +172,10 @@ module "backup" {
   source = "./modules/backup"
   
   environment        = var.environment
-  dynamodb_table_name = var.dynamodb_table_name
+  dynamodb_table_arns = [
+    for t in ["products", "carts", "orders"] :
+    "arn:aws:dynamodb:*:*:table/${t}"
+  ]
 }
 
 # Cost Management Resources

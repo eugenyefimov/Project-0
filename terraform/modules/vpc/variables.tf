@@ -3,9 +3,14 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "availability_zones" {
-  description = "List of availability zones"
-  type        = list(string)
+variable "public_subnet_cidrs" {
+  description = "Map of availability zones to public subnet cidrs"
+  type        = map(string)
+}
+
+variable "private_subnet_cidrs" {
+  description = "Map of availability zones to private subnet cidrs"
+  type        = map(string)
 }
 
 variable "environment" {

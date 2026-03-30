@@ -10,26 +10,26 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "public" {
-  count                   = length(var.availability_zones)
+  for_each                = var.public_subnet_cidrs
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = each.value
+  availability_zone       = each.key
   map_public_ip_on_launch = true
   
   tags = {
-    Name        = "${var.environment}-public-subnet-${count.index + 1}-${var.region_name}"
+    Name        = "${var.environment}-public-subnet-${each.key}"
     Environment = var.environment
   }
 }
 
 resource "aws_subnet" "private" {
-  count                   = length(var.availability_zones)
+  for_each                = var.private_subnet_cidrs
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index + length(var.availability_zones))
-  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = each.value
+  availability_zone       = each.key
   
   tags = {
-    Name        = "${var.environment}-private-subnet-${count.index + 1}-${var.region_name}"
+    Name        = "${var.environment}-private-subnet-${each.key}"
     Environment = var.environment
   }
 }
@@ -44,22 +44,22 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_eip" "nat" {
-  count = length(var.availability_zones)
+  for_each = var.public_subnet_cidrs
   domain = "vpc"
   
   tags = {
-    Name        = "${var.environment}-nat-eip-${count.index + 1}-${var.region_name}"
+    Name        = "${var.environment}-nat-eip-${each.key}"
     Environment = var.environment
   }
 }
 
 resource "aws_nat_gateway" "nat" {
-  count         = length(var.availability_zones)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
+  for_each      = var.public_subnet_cidrs
+  allocation_id = aws_eip.nat[each.key].id
+  subnet_id     = aws_subnet.public[each.key].id
   
   tags = {
-    Name        = "${var.environment}-nat-gateway-${count.index + 1}-${var.region_name}"
+    Name        = "${var.environment}-nat-gateway-${each.key}"
     Environment = var.environment
   }
   
@@ -81,28 +81,28 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table" "private" {
-  count  = length(var.availability_zones)
-  vpc_id = aws_vpc.main.id
+  for_each = var.private_subnet_cidrs
+  vpc_id   = aws_vpc.main.id
   
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat[count.index].id
+    nat_gateway_id = aws_nat_gateway.nat[each.key].id
   }
   
   tags = {
-    Name        = "${var.environment}-private-route-table-${count.index + 1}-${var.region_name}"
+    Name        = "${var.environment}-private-route-table-${each.key}"
     Environment = var.environment
   }
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(var.availability_zones)
-  subnet_id      = aws_subnet.public[count.index].id
+  for_each       = var.public_subnet_cidrs
+  subnet_id      = aws_subnet.public[each.key].id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table_association" "private" {
-  count          = length(var.availability_zones)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  for_each       = var.private_subnet_cidrs
+  subnet_id      = aws_subnet.private[each.key].id
+  route_table_id = aws_route_table.private[each.key].id
 }

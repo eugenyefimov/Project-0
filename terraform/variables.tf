@@ -23,16 +23,44 @@ variable "secondary_vpc_cidr" {
   default     = "10.1.0.0/16"
 }
 
-variable "primary_azs" {
-  description = "Availability Zones in primary region"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+variable "primary_public_subnets" {
+  description = "Map of AZs to public subnets in primary region"
+  type        = map(string)
+  default     = {
+    "us-east-1a" = "10.0.0.0/24"
+    "us-east-1b" = "10.0.1.0/24"
+    "us-east-1c" = "10.0.2.0/24"
+  }
 }
 
-variable "secondary_azs" {
-  description = "Availability Zones in secondary region"
-  type        = list(string)
-  default     = ["us-west-2a", "us-west-2b", "us-west-2c"]
+variable "primary_private_subnets" {
+  description = "Map of AZs to private subnets in primary region"
+  type        = map(string)
+  default     = {
+    "us-east-1a" = "10.0.3.0/24"
+    "us-east-1b" = "10.0.4.0/24"
+    "us-east-1c" = "10.0.5.0/24"
+  }
+}
+
+variable "secondary_public_subnets" {
+  description = "Map of AZs to public subnets in secondary region"
+  type        = map(string)
+  default     = {
+    "us-west-2a" = "10.1.0.0/24"
+    "us-west-2b" = "10.1.1.0/24"
+    "us-west-2c" = "10.1.2.0/24"
+  }
+}
+
+variable "secondary_private_subnets" {
+  description = "Map of AZs to private subnets in secondary region"
+  type        = map(string)
+  default     = {
+    "us-west-2a" = "10.1.3.0/24"
+    "us-west-2b" = "10.1.4.0/24"
+    "us-west-2c" = "10.1.5.0/24"
+  }
 }
 
 variable "domain_name" {
